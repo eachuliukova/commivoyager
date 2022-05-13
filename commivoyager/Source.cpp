@@ -1,170 +1,160 @@
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <cmath>
 #include <exception>
+
 
 using namespace std;
 
 
-class Cord
+class tsp_graph
 {
 private:
-    double x, y;
+    vector <vector<double >> main;
+    vector <vector<double >> main_tmp;
+    vector <double> m_str;
+    vector <double> m_col;
+    int count_edge = 0;
+    vector <bool> black_str;
+    vector <bool> black_col;
+    double sumcost = 0;
 public:
-    Cord(double a, double b) : x(a), y(b)
-    {}
-    friend double dist(Cord a, Cord b);
-};
-
-double dist(Cord a, Cord b)
-{
-    return sqrt(pow(b.x - a.x, 2) + pow(b.y - a.y, 2));
-}
-
-class TSP_Graph
-{
-private:
-    vector < vector < double >> base;
-    vector < vector < double >> base_buf;
-    vector <double> min_line;
-    vector <double> min_column;
-    int ribe_counter = 0;
-    vector <bool> black_line;
-    vector <bool> black_column;
-    double all_cost = 0;
-public:
-
-    bool is_finish()
+    bool ending()
     {
-        if (ribe_counter == base.size())
+        if (count_edge == main.size())
             return true;
         else
             return false;
     }
 
-    double return_cost()
+    double takecost()
     {
-        return all_cost;
+        return sumcost;
+    }
+class Coordinates
+{
+private:
+    double x, y;
+public:
+    Coordinates(double a, double b) : x(a), y(b) {}
+    friend double distantion(Coordinates a, Coordinates b);
+}
+;
+
+
+    tsp_graph(vector <Coordinates>& coordinates)
+    { 
+        main.resize(coordinates.size(), vector<double>(coordinates.size(), -1));
+        for (int i = 0; i < coordinates.size(); i++)
+               for (int j = 0; j < coordinates.size(); j++)
+                    if (i != j)
+                    main[j][i] = distantion(coordinates[j], coordinates[i]);
+        m_str.resize(coordinates.size(), -1);
+        m_col.resize(coordinates.size(), -1);
+        black_str.resize(coordinates.size(), false);
+        black_col.resize(coordinates.size(), false);
+        main_tmp = main;
     }
 
-    TSP_Graph(vector <Cord>& cords)
-    { //за бесконечность положим -1
-        base.resize(cords.size(), vector<double>(cords.size(), -1));
-        for (int i = 0; i < cords.size(); i++)
-            for (int k = 0; k < cords.size(); k++)
-                if (i != k)
-                    base[k][i] = dist(cords[k], cords[i]);
-        min_line.resize(cords.size(), -1);
-        min_column.resize(cords.size(), -1);
-        black_line.resize(cords.size(), false);
-        black_column.resize(cords.size(), false);
-        base_buf = base;
-    }
-
-    void line_reduction()
+    void decrease_str()
     {
-        double counter;
-        for (int i = 0; i < base.size(); i++)
+        double count;
+        for (int i = 0; i < main.size(); i++)
         {
-            if (black_line[i])
-                continue;
-            counter = -1;
-            for (int k = 0; k < base.size(); k++)
-                if ((i != k) and (base[i][k] >= 0) and ((counter == -1) or (base[i][k] < counter)))
-                    counter = base[i][k];
-            min_line[i] = counter;
-            for (int k = 0; k < base.size(); k++)
-                if ((i != k) and (base[i][k] > 0))
-                    base[i][k] -= counter;
+            if (black_str[i])
+            continue;
+            count = -1;
+            for (int j = 0; j < main.size(); j++)
+                if ((i != j) and (main[i][j] >= 0) and ((count == -1) or (main[i][j] < count)))
+                count = main[i][j];
+            m_str[i] = count;
+            for (int k = 0; k < main.size(); k++)
+                if ((i != k) and (main[i][k] > 0))
+                main[i][k] = main[i][k] - count;
         }
     }
 
-    void column_reduction()
+    void decrease_col()
     {
-        double counter;
-        for (int i = 0; i < base.size(); i++)
+        double count;
+        for (int i = 0; i < main.size(); i++)
         {
-            if (black_column[i])
-                continue;
-            counter = -1;
-            for (int k = 0; k < base.size(); k++)
-                if ((i != k) and (base[k][i] >= 0) and ((counter == -1) or (base[k][i] < counter)))
-                    counter = base[k][i];
-            min_column[i] = counter;
-            for (int k = 0; k < base.size(); k++)
-                if ((i != k) and (base[k][i] > 0))
-                    base[k][i] -= counter;
+            if (black_col[i])
+            continue;
+            count = -1;
+            for (int j = 0; j < main.size(); j++)
+                if ((i != j)&&(main[j][i] >= 0)&&((count == -1)or(main[j][i] < count)))
+                count = main[j][i];
+            m_col[i] = count;
+            for (int j = 0; j < main.size(); j++)
+                if ((i != j) and (main[j][i] > 0))
+                main[j][i] = main[j][i] - count;
         }
     }
 
-    double get_min(int i, int k)
+    double take_m(int i, int j)
     {
         double result = 0;
-        double local_min = -1;
-        for (int p = 0; p < base.size(); p++)
-            if (((local_min == -1) or (local_min > base[i][p])) and (base[i][p] >= 0) and (p != k))
-                local_min = base[i][p];
-        result += local_min;
-        local_min = -1;
-        for (int p = 0; p < base.size(); p++)
-            if (((local_min == -1) or (local_min > base[p][k])) and (base[p][k] >= 0) and (p != i))
-                local_min = base[i][p];
-        result += local_min;
+        double mloc = -1;
+        for (int q = 0; q < main.size(); q++)
+            if (((mloc == -1)or(mloc > main[i][q]))&&(main[i][q] >= 0)&&(q != j))
+            mloc = main[i][q];
+        result += mloc;
+        mloc = -1;
+        for (int r = 0; r < main.size(); r++)
+            if (((mloc == -1)or(mloc > main[r][j]))&&(main[r][j] >= 0)&&(r != i))
+            mloc = main[i][r];
+        result += mloc;
         return result;
     }
 
-    void get_ribe_cost()
+    void takecost_edge()
     {
         double counter = 0;
-        double cost_ribe = 0;
-        pair <int, int> buf;
-        for (int i = 0; i < base.size(); i++)
-            for (int k = 0; k < base.size(); k++)
-                if (base[i][k] == 0)
-                    if (get_min(i, k) > counter)
-                    {
-                        buf = make_pair(i, k);
-                        cost_ribe = base_buf[i][k];
+        double cost_edge = 0;
+        pair <int, int> tmp;
+        for (int i = 0; i < main.size(); i++)
+            for (int j = 0; j < main.size(); j++)
+                if (main[i][j] == 0)
+                    if (take_m(i, j) > counter) {
+                      tmp = make_pair(i, j);
+                      cost_edge = main_tmp[i][j];
                     }
-        ribe_counter++;
-        base[buf.first][buf.second] = -1;
-        base[buf.second][buf.first] = -1;
-        all_cost += cost_ribe;
+        count_edge++;
+        main[tmp.first][tmp.second] = -1; main[tmp.second][tmp.first] = -1;
+        sumcost = sumcost + cost_edge;
     }
 
-    void matrix_reduction()
+    void decrease_matr()
     {
         int counter;
-        for (int i = 0; i < base.size(); i++)
-        {
+        for (int i = 0; i < main.size(); i++) {
             counter = 0;
-            for (int k = 0; k < base.size(); k++)
-            {
-                if (base[i][k] == -1) counter++;
-                if (counter >= 2)
-                {
-                    black_line[i] = true;
-                    for (int k = 0; k < base.size(); k++)
-                        base[i][k] = -2;
-                    break;
+            for (int j = 0; j < main.size(); j++) {
+                if (main[i][j] == -1) {
+                    counter++;
+                }
+                if (counter >= 2) {
+                  black_str[i] = true;
+                  for (int j = 0; j < main.size(); j++)
+                   main[i][j] = -2;
+                  break;
                 }
             }
         }
 
-        for (int i = 0; i < base.size(); i++)
-        {
+        for (int i = 0; i < main.size(); i++) {
             counter = 0;
-            for (int k = 0; k < base.size(); k++)
-            {
-                if (base[k][i] == -1) counter++;
-                if (counter >= 2)
-                {
-                    black_column[i] = true;
-                    for (int k = 0; k < base.size(); k++)
-                        base[k][i] = -2;
-                    break;
+            for (int j = 0; j < main.size(); j++) {
+                if (main[j][i] == -1) counter++;
+                if (counter >= 2) {
+                  black_col[i] = true;
+                  for (int j = 0; j < main.size(); j++) {
+                      main[j][i] = -2;
+                  }
+                  break;
                 }
             }
         }
@@ -175,97 +165,69 @@ public:
 
 
 
-vector <string> list_files(string dir)
+vector <string> setfiles(string dir)
 {
-    vector <string> result;
+    vector <string> res;
     for (const auto& entry : filesystem::directory_iterator(dir))
-        result.push_back(entry.path().string().substr(5));
-    return result;
+        res.push_back(entry.path().string().substr(5));
+    return res;
 }
 
-Cord split(string& data, string file_debug = "")
+Coordinates part(string& data, string file_debug = "")
 {
     auto pos = data.find(" ");
-    int transp;
-    if (data.find("  ") != string::npos) transp = 2;
-    else transp = 1;
-    return Cord(stod(data.substr(0, pos)), stod(data.substr(pos + transp)));
+    int com;
+    if (data.find("  ") != string::npos) {
+        com = 2;
+    }
+    else com = 1;
+    return Coordinates(stod(data.substr(0, pos)), stod(data.substr(pos + com)));
 }
 
 
 int main()
 {
-    vector <string> data = list_files("data");
-    string buf;
+    vector <string> data = setfiles("data");
+    string tmp;
     ofstream fout;
     fout.open("result.txt");
-    string x;
-    try {
-        for (int k = 0; k < data.size(); k++)
+    string x;    
+        for (int j = 0; j < data.size(); j++)
         {
-            x = data[k];
+            x = data[j];
             cout << "Starting " << x << endl << flush;
-            vector <Cord> cords;
+            vector <Coordinates> cords;
             ifstream file("data/" + x);
-            getline(file, buf);
-            while (getline(file, buf))
+            getline(file, tmp);
+            while (getline(file, tmp))
             {
-                if (buf == "") continue;
-                cords.push_back(split(buf, x));
+                if (tmp == "") {
+                    continue;
+                }
+                cords.push_back(part(tmp, x));
             }
             file.close();
-            TSP_Graph test(cords);
+            tsp_graph test(cords);
             int count = 0;
-            while (!test.is_finish())
+            while (!test.ending())
             {
-                test.line_reduction();
-                test.column_reduction();
-                test.get_ribe_cost();
-                test.matrix_reduction();
+                test.decrease_str();
+                test.decrease_col();
+                test.takecost_edge();
+                test.decrease_matr();
                 count++;
                 cout << count << " edge ended." << flush << endl;
             }
             cout << x << " test finished " << endl;
-            fout << x << ":" << test.return_cost() << endl;
+            fout << x << ":" << test.takecost() << endl;
         }
-    }
-    catch (exception& e)
-    {
-        cout << e.what();
-        cin.get();
-    }
+    
+ 
     fout.close();
 }
-
-
-bool check_perm(const vector <unsigned int>& base)
+double distantion(Coordinates a, Coordinates b)
 {
-    for (int i = 0; i < base.size(); i++)
-        if (base[base[i] - 1] == i + 1) return false;
-    return true;
+    return sqrt(pow(b.x - a.x, 2) + pow(b.y - a.y, 2));
 }
 
-double cost_perm(vector <unsigned int>& permutations, vector <Cord>& cords)
-{
-    double result = 0;
-    for (int i = 0; i < permutations.size(); i++)
-        result += dist(cords[i + 1], cords[permutations[i] - 1]);
-    return result;
-}
 
-double brutforce_method(vector <Cord> cords, double result)
-{
-    vector <unsigned int> permutations(cords.size());
-    for (int i = 0; i < cords.size(); i++)
-        permutations[i] = i + 1;
-    double buf;
-    do {
-        if (check_perm(permutations))
-        {
-            buf = cost_perm(permutations, cords);
-            if (buf > result)
-                result = buf;
-        }
-    } while (next_permutation(permutations.begin(), permutations.end()));
-    return buf;
-}
